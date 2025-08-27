@@ -1,185 +1,65 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Live — Worldometers Mirror (Demo)</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChatGPT Mirror</title>
 <style>
-  body{margin:0;font-family:Inter,system-ui,Arial;background:#071026;color:#eaf2ff}
-  header{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg, rgba(0,0,0,0.3), rgba(0,0,0,0.15));position:sticky;top:0}
-  .brand{display:flex;gap:12px;align-items:center}
-  .logo{width:40px;height:40px;border-radius:8px;background:linear-gradient(45deg,#7c4dff,#00d1ff)}
-  .controls{display:flex;gap:8px;align-items:center}
-  .btn{padding:8px 12px;border-radius:8px;border:0;background:#7c4dff;color:#071026;font-weight:700;cursor:pointer}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;padding:18px;max-width:1200px;margin:auto}
-  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.6)}
-  .label{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-  .value{font-size:22px;font-weight:800}
-  .rate{color:#9aa4c4;font-size:13px}
-  canvas.spark{width:100%;height:46px;border-radius:8px;margin-top:8px;background:linear-gradient(180deg, rgba(124,77,255,0.05), transparent)}
-  footer{padding:14px 18px;text-align:center;color:#9aa4c4}
-  #status{font-size:13px;color:#9aa4c4}
+body { font-family: Arial; background:#f5f5f5; margin:0; display:flex; flex-direction:column; height:100vh; }
+#chatContainer { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:10px; }
+.message { padding:12px 15px; border-radius:20px; max-width:70%; word-wrap:break-word; }
+.user { background:#0a84ff; color:#fff; align-self:flex-end; }
+.bot { background:#e5e5ea; color:#000; align-self:flex-start; }
+#inputContainer { display:flex; padding:10px; background:#ddd; }
+#userInput { flex:1; padding:10px 15px; border-radius:20px; border:none; font-size:16px; }
+button { padding:10px 15px; margin-left:10px; border:none; border-radius:20px; background:#0a84ff; color:#fff; font-size:16px; cursor:pointer; }
+.typing { font-style:italic; color:#888; }
 </style>
 </head>
 <body>
-<header>
-  <div class="brand"><div class="logo"></div><div><strong>Live Mirror</strong><div style="font-size:12px;color:#9aa4c4">Source: worldometers.info (via proxy)</div></div></div>
-  <div class="controls">
-    <span id="status">connecting…</span>
-    <button class="btn" id="btnPause">Pause</button>
-    <button class="btn" id="btnExport">Export CSV</button>
-  </div>
-</header>
-
-<main>
-  <div id="grid" class="grid" aria-live="polite"></div>
-</main>
-
-<footer>Demo realtime mirror — gunakan server proxy untuk fetch data</footer>
+<div id="chatContainer"></div>
+<div id="inputContainer">
+  <input type="text" id="userInput" placeholder="Ketik pesan..." onkeypress="if(event.key==='Enter'){sendMessage()}"/>
+  <button onclick="sendMessage()">Kirim</button>
+</div>
 
 <script>
-  const grid = document.getElementById('grid');
-  const statusEl = document.getElementById('status');
-  const btnPause = document.getElementById('btnPause');
-  const btnExport = document.getElementById('btnExport');
+const chatContainer = document.getElementById("chatContainer");
 
-  // SSE connect to server stream endpoint
-  const SSE_URL = (location.hostname === 'localhost') ? 'http://localhost:3000/stream' : '/stream';
-  let evtSource = null;
-  let running = true;
-  let latest = { ts:0, metrics: [] };
+async function sendMessage() {
+  const input = document.getElementById("userInput");
+  const message = input.value.trim();
+  if (!message) return;
 
-  function connect() {
-    evtSource = new EventSource(SSE_URL);
-    evtSource.onopen = () => { statusEl.textContent = 'connected'; };
-    evtSource.onmessage = (ev) => {
-      try {
-        const data = JSON.parse(ev.data);
-        latest = data;
-        if (running) updateUI(data.metrics);
-      } catch(e) { console.warn('parse SSE', e); }
-    };
-    evtSource.onerror = (e) => {
-      statusEl.textContent = 'disconnected — retrying';
-      // browser will auto-reconnect EventSource; nothing else needed
-    };
-  }
+  addMessage(message, "user");
+  input.value = "";
 
-  function updateUI(metrics){
-    // create card if not exists, update value with smooth animation
-    metrics.forEach(m => {
-      let card = document.querySelector(`[data-id="${m.id}"]`);
-      if (!card) {
-        card = document.createElement('div');
-        card.className = 'card';
-        card.dataset.id = m.id;
-        card.innerHTML = `
-          <div class="label"><div><strong class="label-title">${escapeHtml(m.label)}</strong></div><small class="muted">${m.id}</small></div>
-          <div class="value" id="v-${m.id}">${formatValue(m.value)}</div>
-          <div class="rate" id="r-${m.id}">${m.rate ? ('+' + Number(m.rate).toLocaleString() + ' / s') : ''}</div>
-          <canvas id="spark-${m.id}" class="spark" width="300" height="46"></canvas>
-        `;
-        grid.appendChild(card);
-      } else {
-        // update title if changed
-        const titleEl = card.querySelector('.label-title');
-        if (titleEl && titleEl.textContent !== m.label) titleEl.textContent = m.label;
-      }
-      // animate number update
-      animateNumber(document.getElementById('v-'+m.id), Number(m.value));
-      const rateEl = document.getElementById('r-'+m.id);
-      if (rateEl) rateEl.textContent = m.rate ? ('+' + Number(m.rate).toLocaleString() + ' / s') : '';
-      // draw spark (append to history stored on element)
-      drawSpark(m);
+  const typingDiv = addMessage("Bot sedang mengetik...", "bot", true);
+
+  try {
+    const res = await fetch("http://localhost:3000/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message })
     });
-    // remove cards not in metrics
-    const ids = new Set(metrics.map(x=>x.id));
-    document.querySelectorAll('.card').forEach(c => { if (!ids.has(c.dataset.id)) c.remove(); });
+    const data = await res.json();
+    chatContainer.removeChild(typingDiv);
+    addMessage(data.reply, "bot");
+  } catch (err) {
+    chatContainer.removeChild(typingDiv);
+    addMessage("Terjadi error: " + err.message, "bot");
   }
+}
 
-  // number animation (smooth)
-  function animateNumber(el, to) {
-    if (!el) return;
-    const from = Number(el.dataset.current || el.textContent.replace(/[^0-9.-]/g,'')) || 0;
-    const duration = 600;
-    const start = performance.now();
-    function step(ts){
-      const t = Math.min(1, (ts - start) / duration);
-      const val = from + (to - from) * easeOutCubic(t);
-      el.textContent = formatValue(val);
-      el.dataset.current = val;
-      if (t < 1) requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
-  }
-  function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
-
-  // format
-  function formatValue(v) {
-    if (typeof v === 'string') return v;
-    const n = Math.abs(v);
-    if (n >= 1e12) return (v/1e12).toFixed(2) + ' T';
-    if (n >= 1e9) return (v/1e9).toFixed(2) + ' B';
-    if (n >= 1e6) return (v/1e6).toFixed(2) + ' M';
-    if (n >= 1e3) return (v/1e3).toFixed(2) + ' K';
-    return Math.round(v).toLocaleString();
-  }
-
-  // tiny sparkline per card using canvas and storing history in element
-  function drawSpark(m) {
-    const c = document.getElementById('spark-'+m.id);
-    if (!c) return;
-    // store history on element
-    c._hist = c._hist || [];
-    c._hist.push(Number(m.value) || 0);
-    if (c._hist.length > 60) c._hist.shift();
-    const ctx = c.getContext('2d');
-    const w = c.width, h = c.height;
-    ctx.clearRect(0,0,w,h);
-    const data = c._hist;
-    const min = Math.min(...data), max = Math.max(...data);
-    const range = (max - min) || 1;
-    // background
-    const grd = ctx.createLinearGradient(0,0,0,h);
-    grd.addColorStop(0, 'rgba(124,77,255,0.08)');
-    grd.addColorStop(1, 'rgba(124,77,255,0.02)');
-    ctx.fillStyle = grd;
-    ctx.fillRect(0,0,w,h);
-    // draw path
-    ctx.beginPath();
-    data.forEach((v,i) => {
-      const x = (i/(data.length-1 || 1)) * (w-8) + 4;
-      const y = h - ((v - min)/range)*(h-12) - 6;
-      if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-    });
-    ctx.strokeStyle = 'rgba(124,77,255,0.95)';
-    ctx.lineWidth = 1.8;
-    ctx.stroke();
-  }
-
-  // Export CSV of latest metrics
-  function exportCSV() {
-    const rows = [['id','label','value','rate','ts']];
-    latest.metrics.forEach(m => {
-      rows.push([m.id, m.label, m.value, m.rate || '', new Date(latest.ts).toISOString()]);
-    });
-    const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = 'livemirror_'+Date.now()+'.csv'; document.body.appendChild(a); a.click(); a.remove();
-  }
-
-  btnExport.addEventListener('click', exportCSV);
-  btnPause.addEventListener('click', ()=>{
-    running = !running; btnPause.textContent = running ? 'Pause' : 'Resume';
-    if (running && latest.metrics.length) updateUI(latest.metrics);
-  });
-
-  // escape text
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-  // start
-  connect();
+function addMessage(text, type, typing=false) {
+  const div = document.createElement("div");
+  div.className = `message ${type}`;
+  if (typing) div.classList.add("typing");
+  div.textContent = text;
+  chatContainer.appendChild(div);
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+  return div;
+}
 </script>
 </body>
 </html>
