@@ -37,7 +37,7 @@ async function sendMessage() {
   const typingDiv = addMessage("Bot sedang mengetik...", "bot", true);
 
   try {
-    const res = await fetch("http://info-dunia.hanamicloud.biz.id/chat", {
+    const res = await fetch("http://info-dunia.hanamicloud.biz.id", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message })
