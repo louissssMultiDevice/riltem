@@ -1,0 +1,118 @@
+/* Reset & global */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+}
+
+/* Container */
+.chat-app {
+  width: 450px;
+  max-width: 95%;
+  height: 600px;
+  background-color: rgba(255,255,255,0.05);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+
+/* Header */
+header {
+  padding: 20px;
+  background: rgba(255,255,255,0.1);
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+header h1 {
+  font-size: 1.8rem;
+  margin-bottom: 5px;
+}
+
+header p {
+  font-size: 0.9rem;
+  color: #ddd;
+}
+
+/* Chat Box */
+.chat-box {
+  flex-grow: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+/* Messages */
+.message {
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  word-wrap: break-word;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.message.user {
+  background: linear-gradient(90deg, #10b981, #3b82f6);
+  align-self: flex-end;
+}
+
+.message.ai {
+  background: rgba(255,255,255,0.1);
+  align-self: flex-start;
+}
+
+/* Footer */
+footer {
+  display: flex;
+  padding: 15px;
+  gap: 10px;
+  background: rgba(255,255,255,0.1);
+}
+
+footer input {
+  flex-grow: 1;
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  outline: none;
+  font-size: 1rem;
+}
+
+footer button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 12px;
+  background-color: #4f46e5;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+footer button:hover {
+  background-color: #6366f1;
+}
+
+/* Scrollbar */
+.chat-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-box::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.3);
+  border-radius: 3px;
+}
